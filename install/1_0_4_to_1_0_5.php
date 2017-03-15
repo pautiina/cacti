@@ -23,5 +23,39 @@
 */
 
 function upgrade_to_1_0_5() {
+	db_install_execute('ALTER TABLE host_snmp_cache MODIFY COLUMN snmp_index varchar(191) NOT NULL default ""');
+	db_install_execute('ALTER TABLE poller_command MODIFY COLUMN command varchar(191) NOT NULL default ""');
+	db_install_execute('ALTER TABLE poller_data_template_field_mappings MODIFY COLUMN data_source_names varchar(191) NOT NULL default ""');
+	db_install_execute('ALTER TABLE poller_reindex DROP PRIMARY KEY, ADD PRIMARY KEY (host_id, data_query_id)');
+	db_install_execute('ALTER TABLE snmpagent_managers_notifications MODIFY COLUMN notification varchar(180) NOT NULL');
+	db_install_execute('ALTER TABLE snmpagent_notifications_log MODIFY COLUMN notification varchar(180) NOT NULL');
 
+	/* bad data source profile id's */
+	$profile_id = db_fetch_cell('SELECT id FROM data_source_profiles ORDER BY `default` DESC LIMIT 1');
+	db_install_execute('UPDATE data_template_data SET data_source_profile_id = ' . $profile_id . ' WHERE data_source_profile_id = 0');
+
+	/* engine id length */
+	db_install_execute('ALTER TABLE automation_devices MODIFY COLUMN snmp_engine_id VARCHAR(64) DEFAULT ""');
+	db_install_execute('ALTER TABLE automation_snmp_items MODIFY COLUMN snmp_engine_id VARCHAR(64) DEFAULT ""');
+	db_install_execute('ALTER TABLE host MODIFY COLUMN snmp_engine_id VARCHAR(64) DEFAULT ""');
+	db_install_execute('ALTER TABLE poller_item MODIFY COLUMN snmp_engine_id VARCHAR(64) DEFAULT ""');
+	db_install_execute('ALTER TABLE snmpagent_managers MODIFY COLUMN snmp_engine_id VARCHAR(64) DEFAULT ""');
+
+	/* issue 399 external links ordering */
+	$badlinks = db_fetch_cell('SELECT COUNT(*) FROM external_links WHERE sortorder=0');
+	if ($badlinks) {
+		$links = db_fetch_assoc('SELECT id FROM external_links ORDER BY id');
+		$order = 1;
+
+		foreach($links as $link) {
+			db_execute_prepared('UPDATE external_links SET sortorder = ? WHERE id = ?', array($order, $link['id']));
+			$order++;
+		}
+	}
+
+	/* add external id column */
+	if (!db_column_exists('host', 'external_id')) {
+		db_install_execute('ALTER TABLE host ADD COLUMN external_id VARCHAR(40) DEFAULT NULL AFTER notes');
+		db_install_execute('ALTER TABLE host ADD INDEX external_id (external_id)');
+	}
 }

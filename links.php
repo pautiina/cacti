@@ -75,7 +75,9 @@ case 'save':
 
 	$consolesection    = get_nfilter_request_var('consolesection');
 	$consolenewsection = get_nfilter_request_var('consolenewsection');
-	$extendedstyle = '';
+	$extendedstyle     = '';
+	$lastsortorder     = db_fetch_cell('SELECT MAX(sortorder) FROM external_links');
+	$save['sortorder'] = $lastsortorder + 1;
 
 	if ($save['style'] == 'CONSOLE') {
 		if ($consolesection == '__NEW__') {
@@ -307,17 +309,17 @@ function pages() {
 						<?php print __('Search');?>
 					</td>
 					<td>
-						<input type='textbox' id='filter' value='<?php print $_REQUEST['filter'];?>' size='25'>
+						<input type='textbox' id='filter' value='<?php print get_request_var('filter');?>' size='25'>
 					</td>
 					<td>
 						<?php print __('Links');?>
 					</td>
 					<td>
 						<select id='rows' onChange='applyFilter()'>
-							<option value=-1 <?php $_REQUEST['rows'] == -1 ? 'selected':'';?>><?php print __('Default');?></option>
+							<option value=-1 <?php get_request_var('rows') == -1 ? 'selected':'';?>><?php print __('Default');?></option>
 							<?php
 							foreach ($item_rows as $key => $row) {
-								echo "<option value='" . $key . "'" . ($key == $_REQUEST['rows'] ? ' selected' : '') . '>' . $row . '</option>';
+								echo "<option value='" . $key . "'" . ($key == get_request_var('rows') ? ' selected' : '') . '>' . $row . '</option>';
 							}
 							?>
 						</select>
@@ -376,7 +378,7 @@ function pages() {
 		'title'       => array('display' => __('Title'),   'align' => 'left',  'sort' => 'ASC'),
 		'style'       => array('display' => __('Style'),   'align' => 'left',  'sort' => 'ASC'),
 		'disabled'    => array('display' => __('Enabled'), 'align' => 'left',  'sort' => 'ASC'),
-		'sortorder'   => array('display' => __('Order'),   'align' => 'right', 'sort' => 'ASC')
+		'sortorder'   => array('display' => __('Order'),   'align' => 'center', 'sort' => 'ASC')
 	);
 
 	html_header_sort_checkbox($display_text, get_request_var('sort_column'), get_request_var('sort_direction'));
@@ -411,7 +413,7 @@ function pages() {
 					$sort .= '<a class="pic fa fa-caret-down moveArrow" href="' . htmlspecialchars('links.php?action=move_page_down&order=' . $page['sortorder'] . '&id=' . $page['id']) . '"></a>';
 				}
 
-				form_selectable_cell($sort, $page['id'], '', 'right');
+				form_selectable_cell($sort, $page['id'], '', 'center');
 			}else{
 				form_selectable_cell(__('Sort for Ordering'), $page['id']);
 			}

@@ -1,6 +1,6 @@
 /*
  +-------------------------------------------------------------------------+
- | Copyright (C) 2004-2016 The Cacti Group                                 |
+ | Copyright (C) 2004-2017 The Cacti Group                                 |
  |                                                                         |
  | This program is free software; you can redistribute it and/or           |
  | modify it under the terms of the GNU General Public License             |
@@ -64,7 +64,7 @@
 			// "options" contains the start input parameters
 			options: $.extend(defaults, options),
 			// "attributes" holds all values that will describe the selected area
-			attr: { activeElement:'', start:'none', end:'none', action:'left2right', location: window.location.href.split("?") }
+			attr: { activeElement:'', start:'none', end:'none', action:'left2right', location: window.location.href.split("?"), urlPath: ((typeof urlPath == 'undefined') ? '' : urlPath), origin: ((typeof location.origin == 'undefined') ? location.protocol + '//' + location.host : location.origin)}
 		};
 
 		// support jQuery's concatenation
@@ -145,7 +145,7 @@
 		function zoom_init(image) {
 			/* destroy every other active zoom sessions */
 			zoomElements_remove();
-			
+
 			var $this = image;
 			$this.parent().disableSelection();
 			$this.off().mouseenter(
@@ -167,7 +167,7 @@
 
 			/* as long as Zoom is active reposition all elements once the window has been resized by the user */
 			$(window).off('resize').on('resize', function() { zoomElements_reposition( $this ); } );
-			
+
 			/* load global settings cached in a cookie if available */
 			zoom.custom =  $.cookie(zoom.options.cookieName) ? unserialize( $.cookie(zoom.options.cookieName) ) : {};
 			if(zoom.custom.zoomMode == undefined) zoom.custom.zoomMode = 'quick';
@@ -177,7 +177,7 @@
 			if(zoom.custom.zoomTimestamps == undefined) zoom.custom.zoomTimestamps = 'auto';
 			if(zoom.custom.zoom3rdMouseButton == undefined) zoom.custom.zoom3rdMouseButton = false;
 			$.cookie( zoom.options.cookieName, serialize(zoom.custom), {expires: 30} );
-			
+
 			/* take care of different time zones server and client can make use of */
 			if(zoom.options.serverTimeOffset > clientTimeOffset ) {
 				timeOffset = (zoom.options.serverTimeOffset - clientTimeOffset)*1000;
@@ -186,16 +186,21 @@
 			}
 
 			/* fetch all attributes that rrdgraph provides */
-			zoom.image.top				= parseInt($this.offset().top);
-			zoom.image.left				= parseInt($this.offset().left);
-			zoom.image.width			= parseInt($this.attr('image_width'));
-			zoom.image.height			= parseInt($this.attr('image_height'));
-			zoom.graph.top				= parseInt($this.attr('graph_top'));
-			zoom.graph.left				= parseInt($this.attr('graph_left'));
-			zoom.graph.width			= parseInt($this.attr('graph_width'));
-			zoom.graph.height			= parseInt($this.attr('graph_height'));
-			zoom.graph.start			= parseInt($this.attr('graph_start'));
-			zoom.graph.end				= parseInt($this.attr('graph_end'));
+			zoom.image.data 			= atob( zoom.initiator.attr('src').split(',')[1] );
+			zoom.image.type 			= (zoom.initiator.attr('src').split(';')[0] == 'data:image/svg+xml' )? 'svg' : 'png';
+			zoom.image.id				= zoom.initiator.attr('id').replace('graph_', '');
+			zoom.image.name 			= 'cacti_' + zoom.image.id + '.' + zoom.image.type;
+			zoom.image.legend			= ($('#thumbnails').length != 0 && $('#thumbnails').is(':checked')) ? false : true;
+			zoom.image.top				= parseInt(zoom.initiator.offset().top);
+			zoom.image.left				= parseInt(zoom.initiator.offset().left);
+			zoom.image.width			= parseInt(zoom.initiator.attr('image_width'));
+			zoom.image.height			= parseInt(zoom.initiator.attr('image_height'));
+			zoom.graph.top				= parseInt(zoom.initiator.attr('graph_top'));
+			zoom.graph.left				= parseInt(zoom.initiator.attr('graph_left'));
+			zoom.graph.width			= parseInt(zoom.initiator.attr('graph_width'));
+			zoom.graph.height			= parseInt(zoom.initiator.attr('graph_height'));
+			zoom.graph.start			= parseInt(zoom.initiator.attr('graph_start'));
+			zoom.graph.end				= parseInt(zoom.initiator.attr('graph_end'));
 			zoom.graph.timespan			= zoom.graph.end - zoom.graph.start;
 			zoom.graph.secondsPerPixel 	= zoom.graph.timespan/zoom.graph.width;
 			zoom.box.width				= zoom.graph.width;
@@ -220,13 +225,22 @@
 				$("#zoom-container").css({ top:zoom.image.top+'px', left:zoom.image.left+'px', width:(zoom.image.width-1)+'px', height:(zoom.image.height-1)+'px' });
 			}
 
+			// add a hidden anchor to use for downloads
+			if($("#zoom-image").length == 0) {
+				$("<a class='zoom-hidden' id='zoom-image'></a>").appendTo("body");
+			}
+			// add a hidden textareas used to copy images / links
+			if($("#zoom-textarea").length == 0) {
+				$("<textarea id='zoom-textarea' class='zoom-hidden'></textarea>").appendTo("body");
+			}
+
 			// add the "zoomBox"
 			if($("#zoom-box").length == 0) {
 				// Please note: IE does not fire hover or click behaviors on completely transparent elements.
 				// Use a background color and set opacity to 1% as a workaround.(see CSS file)
 				$("<div id='zoom-box'></div>").appendTo("#zoom-container");
 			}
-
+			
 			// add the "zoomSelectedArea"
 			if($("#zoom-area").length == 0) {
 				$("<div id='zoom-area'></div>").appendTo("#zoom-container");
@@ -270,6 +284,15 @@
 					+ 		'<div class="inner_li">'
 					+ 			'<span class="zoomContextMenuAction__set_zoomMode__quick">Quick</span>'
 					+ 			'<span class="zoomContextMenuAction__set_zoomMode__advanced">Advanced</span>'
+					+ 		'</div>'
+					+ '</div>'
+					+ '<div class="sep_li"></div>'
+					+ '<div class="first_li">'
+					+ 		'<div class="ui-icon ui-icon-empty"></div><span>Graph</span>'
+					+ 		'<div class="inner_li">'
+					+ 			'<span class="zoomContextMenuAction__newTab">Open in new tab</a></span>'
+					+			'<span class="zoomContextMenuAction__save">Save graph</span>'
+					+ 			'<span class="zoomContextMenuAction__link">Copy graph link</span>'
 					+ 		'</div>'
 					+ '</div>'
 					+ '<div class="first_li advanced_mode">'
@@ -319,31 +342,31 @@
 					+ 		'<div class="ui-icon ui-icon-close zoomContextMenuAction__close"></div><span class="zoomContextMenuAction__close">Close</span>'
 					+ '</div>').appendTo("#zoom-container");
 			}
-			zoomElements_reset()
+			zoomElements_reset();
 			zoomContextMenu_init();
 			zoomAction_init(image);
 		}
 
 		/**
 		 * reposition all elements of Zoom
-		 **/	
+		 **/
 		function zoomElements_reposition( image ) {
 			var $this = image;
 			zoom.image.top	= parseInt($this.offset().top);
 			zoom.image.left	= parseInt($this.offset().left);
 			$("#zoom-container").css({ top:zoom.image.top+'px', left:zoom.image.left+'px' });
-			
+
 		}
 
 		/**
 		 * resets and destroys all elements of Zoom
-		 **/		
+		 **/
 		function zoomElements_remove() {
 			zoomElements_reset();
 			$("#zoom-container").find('*').off();
 			$("#zoom-container").remove();
 		}
-		
+
 		/**
 		 * resets all elements of Zoom
 		 **/
@@ -405,25 +428,25 @@
 						case 1:
 							if(zoom.attr.start != 'none') {
 								zoomAction_zoom_in();
-			
+
 							}
 						break;
 					}
 				});
 
 				/* stretch the zoom area in that direction the user moved the mouse pointer */
-				$("#zoom-box").mousemove( function(e) { 
+				$("#zoom-box").mousemove( function(e) {
 					zoomAction_draw(e);
 				} );
 
 				/* stretch the zoom area in that direction the user moved the mouse pointer.
 				   That is required to get it working faultlessly with Opera, IE and Chrome	*/
-				$("#zoom-area").mousemove( function(e) { 
+				$("#zoom-area").mousemove( function(e) {
 					zoomAction_draw(e);
 				} );
 
 				/* moving the mouse pointer quickly will avoid that the mousemove event has enough time to actualize the zoom area */
-				$("#zoom-box").mouseout( function(e) { 
+				$("#zoom-box").mouseout( function(e) {
 					zoomAction_draw(e);
 				} );
 
@@ -518,7 +541,7 @@
 							$this.draggable({
 								containment: "#zoom-box",
 								axis: "x",
-								scroll: false, 
+								scroll: false,
 								start:
 									function(event, ui) {
 										if(zoom.custom.zoomTimestamps == "auto") {
@@ -641,7 +664,7 @@
 				/* execute zoom within "tree view" or the "preview view" */
 				$('#' + zoom.options.inputfieldStartTime).val(unixTime2Date(newGraphStartTime));
 				$('#' + zoom.options.inputfieldEndTime).val(unixTime2Date(newGraphEndTime));
-				
+
 				zoomElements_remove();
 				$("input[name='" + zoom.options.submitButton + "']").trigger('click');
 				return false;
@@ -891,6 +914,42 @@
 					break;
 				case "zoom_in":
 					zoomAction_zoom_in();
+					break;
+				case "save":
+					var arraybuffer = new ArrayBuffer(zoom.image.data.length);
+					var view = new Uint8Array(arraybuffer);
+					for (var i = 0; i < zoom.image.data.length; i++) {
+						view[i] = zoom.image.data.charCodeAt(i) & 0xff;
+					}
+
+					try {
+						var blob = new Blob([arraybuffer], {type: 'application/octet-stream'});
+					} catch (e) {
+						var bb = new (window.WebKitBlobBuilder || window.MozBlobBuilder);
+						bb.append(arraybuffer);
+						var blob = bb.getBlob('application/octet-stream');
+					}
+
+					if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+						window.navigator.msSaveOrOpenBlob(blob, zoom.image.name);
+					} else {
+						var objectUrl = URL.createObjectURL(blob);
+						$('#zoom-image').removeAttr('target').attr({'download':zoom.image.name, 'href':objectUrl }).get(0).click();
+					}
+					break;
+				case "newTab":
+					var url = zoom.attr.urlPath + 'graph_image.php?local_graph_id=' + zoom.image.id + '&graph_start=' + zoom.graph.start + '&graph_end=' + zoom.graph.end + '&graph_width=' + zoom.graph.width + '&graph_height=' + zoom.graph.height + ( (zoom.image.legend === true) ? '' : '&graph_nolegend=true' );
+					$('#zoom-image').removeAttr('download').attr({ 'href':url, 'target': '_bank' }).get(0).click();
+					break;
+				case "link":
+					var url = zoom.attr.origin + ((zoom.attr.urlPath == '') ? '/' : zoom.attr.urlPath) + 'graph_image.php?local_graph_id=' + zoom.image.id + '&graph_start=' + zoom.graph.start + '&graph_end=' + zoom.graph.end + '&graph_width=' + zoom.graph.width + '&graph_height=' + zoom.graph.height + ( (zoom.image.legend === true) ? '' : '&graph_nolegend=true' );
+					$('#zoom-textarea').html(url).select();
+					try {
+						var successful = document.execCommand('copy');
+					} catch (err) {
+						alert('Unsupported Browser');
+					}
+					return false;
 					break;
 			}
 		}
