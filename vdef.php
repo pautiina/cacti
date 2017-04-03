@@ -732,7 +732,7 @@ function vdef_filter() {
 	html_end_box();
 }
 
-function get_vdef_records(&$total_rows, &$rowspp) {
+function get_vdef_records(&$total_rows, &$rows) {
 	/* form the 'where' clause for our main sql query */
 	if (get_request_var('filter') != '') {
 		$sql_where = "WHERE (rs.name LIKE '%" . get_request_var('filter') . "%')";
@@ -760,6 +760,9 @@ function get_vdef_records(&$total_rows, &$rowspp) {
 		$sql_having
 	");
 
+	$sql_order = get_order_string();
+	$sql_limit = ' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows;
+
 	return db_fetch_assoc("SELECT rs.*,
 		SUM(CASE WHEN local_graph_id=0 THEN 1 ELSE 0 END) AS templates,
         SUM(CASE WHEN local_graph_id>0 THEN 1 ELSE 0 END) AS graphs
@@ -773,8 +776,8 @@ function get_vdef_records(&$total_rows, &$rowspp) {
 		$sql_where
 		GROUP BY rs.id
 		$sql_having
-		ORDER BY " . get_request_var('sort_column') . ' ' . get_request_var('sort_direction') .
-		' LIMIT ' . ($rowspp*(get_request_var('page')-1)) . ',' . $rowspp);
+		$sql_order
+		$sql_limit");
 }
 
 function vdef($refresh = true) {
@@ -860,8 +863,8 @@ function vdef($refresh = true) {
             form_alternate_row('line' . $vdef['id'], false, $disabled);
 			form_selectable_cell(filter_value($vdef['name'], get_request_var('filter'), 'vdef.php?action=edit&id=' . $vdef['id']), $vdef['id']);
             form_selectable_cell($disabled ? __('No'):__('Yes'), $vdef['id'], '', 'text-align:right');
-            form_selectable_cell(number_format_i18n($vdef['graphs']), $vdef['id'], '', 'text-align:right');
-            form_selectable_cell(number_format_i18n($vdef['templates']), $vdef['id'], '', 'text-align:right');
+            form_selectable_cell(number_format_i18n($vdef['graphs'], '-1'), $vdef['id'], '', 'text-align:right');
+            form_selectable_cell(number_format_i18n($vdef['templates'], '-1'), $vdef['id'], '', 'text-align:right');
             form_checkbox_cell($vdef['name'], $vdef['id'], $disabled);
             form_end_row();
         }

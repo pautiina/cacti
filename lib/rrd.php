@@ -570,31 +570,30 @@ function rrdtool_function_create($local_data_id, $show_source, $rrdtool_pipe = '
 	   exists and if not create it.
 	 */
 	if (read_config_option('extended_paths') == 'on') {
-	
-		if(read_config_option('storage_location')) {
-			if( false === rrdtool_execute("is_dir " . dirname($data_source_path), true, RRDTOOL_OUTPUT_BOOLEAN, $rrdtool_pipe, 'POLLER') ) {
-				if( false === rrdtool_execute("mkdir " . dirname($data_source_path), true, RRDTOOL_OUTPUT_BOOLEAN, $rrdtool_pipe, 'POLLER') ) {
+		if (read_config_option('storage_location')) {
+			if (false === rrdtool_execute("is_dir " . dirname($data_source_path), true, RRDTOOL_OUTPUT_BOOLEAN, $rrdtool_pipe, 'POLLER') ) {
+				if (false === rrdtool_execute("mkdir " . dirname($data_source_path), true, RRDTOOL_OUTPUT_BOOLEAN, $rrdtool_pipe, 'POLLER') ) {
 					cacti_log("ERROR: Unable to create directory '" . dirname($data_source_path) . "'", FALSE);
 				}
 			}
-		}else {
-			if (!is_dir(dirname($data_source_path))) {
-				if (mkdir(dirname($data_source_path), 0775)) {
-					if ($config['cacti_server_os'] != 'win32') {
-						$owner_id = fileowner($config['rra_path']);
-						$group_id = filegroup($config['rra_path']);
+		}elseif (!is_dir(dirname($data_source_path)) && $config['is_web'] == false) {
+			if (mkdir(dirname($data_source_path), 0775)) {
+				if ($config['cacti_server_os'] != 'win32') {
+					$owner_id = fileowner($config['rra_path']);
+					$group_id = filegroup($config['rra_path']);
 
-						if ((chown(dirname($data_source_path), $owner_id)) &&
-							(chgrp(dirname($data_source_path), $group_id))) {
-							/* permissions set ok */
-						}else{
-							cacti_log("ERROR: Unable to set directory permissions for '" . dirname($data_source_path) . "'", FALSE);
-						}
+					if ((chown(dirname($data_source_path), $owner_id)) &&
+						(chgrp(dirname($data_source_path), $group_id))) {
+						/* permissions set ok */
+					}else{
+						cacti_log("ERROR: Unable to set directory permissions for '" . dirname($data_source_path) . "'", FALSE);
 					}
-				}else{
-					cacti_log("ERROR: Unable to create directory '" . dirname($data_source_path) . "'", FALSE);
 				}
+			}else{
+				cacti_log("ERROR: Unable to create directory '" . dirname($data_source_path) . "'", FALSE);
 			}
+		}else{
+			cacti_log("WARNING: Poller has not created structured path '" . dirname($data_source_path) . "' yet.", FALSE);
 		}
 	}
 
@@ -976,7 +975,7 @@ function rrd_function_process_graph_options($graph_start, $graph_end, &$graph, &
 			break;
 		case "vertical_label":
 			if (!empty($value)) {
-				$graph_opts .= "--vertical-label=" . cacti_escapeshellarg($value) . RRD_NL;
+				$graph_opts .= "--vertical-label=" . cacti_escapeshellarg(htmlspecialchars($value, ENT_QUOTES, 'UTF-8')) . RRD_NL;
 			}
 			break;
 		case "slope_mode":
@@ -1832,7 +1831,7 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 					if (trim($comment_arg) == '') { # an empty COMMENT must be treated with care
 						$comment_arg = cacti_escapeshellarg(' ' . $hardreturn[$graph_item_id]);
 					} else {
-						$comment_arg = cacti_escapeshellarg(rrdtool_escape_string($comment_arg) . $hardreturn[$graph_item_id]);
+						$comment_arg = cacti_escapeshellarg(rrdtool_escape_string(htmlspecialchars($comment_arg, ENT_QUOTES, 'UTF-8')) . $hardreturn[$graph_item_id]);
 					}
 
 					# create rrdtool specific command line
@@ -1849,63 +1848,63 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 
 				break;
 			case GRAPH_ITEM_TYPE_GPRINT:
-				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]);
+				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8'));
 
-				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $data_source_name . ':' . $consolidation_functions{$graph_item['consolidation_function_id']} . ':' . cacti_escapeshellarg(trim($graph_variables['text_format'][$graph_item_id]) . trim($graph_item['gprint_text']) . ($hardreturn[$graph_item_id] != '' ? $hardreturn[$graph_item_id]:'')) . ' ';
+				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $data_source_name . ':' . $consolidation_functions{$graph_item['consolidation_function_id']} . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 
 				break;
 			case GRAPH_ITEM_TYPE_GPRINT_AVERAGE:
 				if (!isset($graph_data_array['graph_nolegend'])) {
-					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]);
+					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8'));
 
 					if ($graph_item['vdef_id'] == '0') {
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':AVERAGE:"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':AVERAGE:' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}else{
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}
 				}
 
 				break;
 			case GRAPH_ITEM_TYPE_GPRINT_LAST:
 				if (!isset($graph_data_array['graph_nolegend'])) {
-					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]);
+					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8'));
 
 					if ($graph_item['vdef_id'] == '0') {
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':LAST:"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':LAST:' . ($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}else{
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]). ' ';
 					}
 				}
 
 				break;
 			case GRAPH_ITEM_TYPE_GPRINT_MAX:
 				if (!isset($graph_data_array['graph_nolegend'])) {
-					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]);
+					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8'));
 
 					if ($graph_item['vdef_id'] == '0') {
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':MAX:"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':MAX:' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}else{
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}
 				}
 
 				break;
 			case GRAPH_ITEM_TYPE_GPRINT_MIN:
 				if (!isset($graph_data_array['graph_nolegend'])) {
-					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]);
+					$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8'));
 
 					if ($graph_item['vdef_id'] == '0') {
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':MIN:"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':MIN:' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}else{
-						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':"' . $graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id] . '" ';
+						$txt_graph_items .= 'GPRINT:' . $data_source_name . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $graph_item['gprint_text'] . $hardreturn[$graph_item_id]) . ' ';
 					}
 				}
 
 				break;
 			case GRAPH_ITEM_TYPE_AREA:
-				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(($graph_variables['text_format'][$graph_item_id] != '' ? str_pad($graph_variables['text_format'][$graph_item_id], $pad_number):''));
+				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id] != '' ? str_pad($graph_variables['text_format'][$graph_item_id], $pad_number):'', ENT_QUOTES, 'UTF-8'));
 
-				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $data_source_name . $graph_item_color_code . ':"' . $graph_variables['text_format'][$graph_item_id] . $hardreturn[$graph_item_id] . '" ';
+				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $data_source_name . $graph_item_color_code . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $hardreturn[$graph_item_id]) . ' ';
 
 				if ($graph_item['shift'] == CHECKED && $graph_item['value'] > 0) {      # create a SHIFT statement
 					$txt_graph_items .= RRD_NL . 'SHIFT:' . $data_source_name . ':' . $graph_item['value'];
@@ -1913,9 +1912,9 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 
 				break;
 			case GRAPH_ITEM_TYPE_STACK:
-				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(($graph_variables['text_format'][$graph_item_id] != '' ? str_pad($graph_variables['text_format'][$graph_item_id],$pad_number):''));
+				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id] != '' ? str_pad($graph_variables['text_format'][$graph_item_id],$pad_number):'', ENT_QUOTES, 'UTF-8'));
 
-				$txt_graph_items .= 'AREA:' . $data_source_name . $graph_item_color_code . ':"' . $graph_variables['text_format'][$graph_item_id] . $hardreturn[$graph_item_id] . '":STACK';
+				$txt_graph_items .= 'AREA:' . $data_source_name . $graph_item_color_code . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $hardreturn[$graph_item_id]) . ':STACK';
 
 				if ($graph_item['shift'] == CHECKED && $graph_item['value'] > 0) {      # create a SHIFT statement
 					$txt_graph_items .= RRD_NL . 'SHIFT:' . $data_source_name . ':' . $graph_item['value'];
@@ -1925,7 +1924,7 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 			case GRAPH_ITEM_TYPE_LINE1:
 			case GRAPH_ITEM_TYPE_LINE2:
 			case GRAPH_ITEM_TYPE_LINE3:
-				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(($graph_variables['text_format'][$graph_item_id] != '' ? str_pad($graph_variables['text_format'][$graph_item_id], $pad_number):'')); 
+				$graph_variables['text_format'][$graph_item_id] = rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id] != '' ? str_pad($graph_variables['text_format'][$graph_item_id], $pad_number):''), ENT_QUOTES, 'UTF-8'); 
 
 				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $data_source_name . $graph_item_color_code . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $hardreturn[$graph_item_id]) . ' ';
 
@@ -1935,7 +1934,7 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 
 				break;
 			case GRAPH_ITEM_TYPE_LINESTACK:
-				$txt_graph_items .= 'LINE' . $graph_item['line_width'] . ':' . $data_source_name . $graph_item_color_code . ':"' . rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]) . $hardreturn[$graph_item_id] . '":STACK' . $dash;
+				$txt_graph_items .= 'LINE' . $graph_item['line_width'] . ':' . $data_source_name . $graph_item_color_code . ':' . cacti_escapeshellarg(rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8')) . $hardreturn[$graph_item_id]) . ':STACK' . $dash;
 
 				if ($graph_item['shift'] == CHECKED && $graph_item['value'] > 0) {      # create a SHIFT statement
 					$txt_graph_items .= RRD_NL . 'SHIFT:' . $data_source_name . ':' . $graph_item['value'];
@@ -1952,13 +1951,13 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 				$graph_variables['value'][$graph_item_id] = $graph_variables['value'][$graph_item_id];
 
 				/* perform variable substitution; if this does not return a number, rrdtool will FAIL! */
-				$substitute = rrd_substitute_host_query_data($graph_variables['value'][$graph_item_id], $graph, $graph_item);
+				$substitute = rrdtool_escape_string(htmlspecialchars(rrd_substitute_host_query_data($graph_variables['value'][$graph_item_id], $graph, $graph_item), ENT_QUOTES, 'UTF-8'));
 
 				if (is_numeric($substitute)) {
 					$graph_variables['value'][$graph_item_id] = $substitute;
 				}
 
-				$txt_graph_items .= $graph_item_types[$graph_item['graph_type_id']] . ':' . $graph_variables['value'][$graph_item_id] . $graph_item_color_code . ':"' . rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]) . $hardreturn[$graph_item_id] . '"' . $dash;
+				$txt_graph_items .= $graph_item_types[$graph_item['graph_type_id']] . ':' . $graph_variables['value'][$graph_item_id] . $graph_item_color_code . ':' . cacti_escapeshellarg($graph_variables['text_format'][$graph_item_id] . $hardreturn[$graph_item_id]) . '' . $dash;
 
 				break;
 			case GRAPH_ITEM_TYPE_VRULE:
@@ -1966,15 +1965,15 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 					$value_array = explode(':', $graph_item['value']);
 
 					if ($value_array[0] < 0) {
-					$value = date('U') - (-3600 * $value_array[0]) - 60 * $value_array[1];
+						$value = date('U') - (-3600 * $value_array[0]) - 60 * $value_array[1];
 					}else{
-					$value = date('U', mktime($value_array[0],$value_array[1],0));
+						$value = date('U', mktime($value_array[0],$value_array[1],0));
 					}
 				}else if (is_numeric($graph_item['value'])) {
 					$value = $graph_item['value'];
 				}
 
-				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $value . $graph_item_color_code . ':"' . rrdtool_escape_string($graph_variables['text_format'][$graph_item_id]) . $hardreturn[$graph_item_id] . '"' . $dash;
+				$txt_graph_items .= $graph_item_types{$graph_item['graph_type_id']} . ':' . $value . $graph_item_color_code . ':' . cacti_escapeshellarg(rrdtool_escape_string(htmlspecialchars($graph_variables['text_format'][$graph_item_id], ENT_QUOTES, 'UTF-8')) . $hardreturn[$graph_item_id]) . $dash;
 
 				break;
 			default:
@@ -2025,13 +2024,12 @@ function rrdtool_function_graph($local_graph_id, $rra_id, $graph_data_array, $rr
 			}
 
 			if (isset($graph_data_array['get_error'])) {
-				return rrdtool_execute("graph $graph_opts$graph_defs$txt_graph_items", false, RRDTOOL_OUTPUT_STDERR, $rrdtool_pipe);
+				return rrdtool_execute("graph $graph_opts$graph_defs$txt_graph_items", false, RRDTOOL_OUTPUT_STDERR);	
 			}elseif (isset($graph_data_array['export'])) {
 				rrdtool_execute("graph $graph_opts$graph_defs$txt_graph_items", false, RRDTOOL_OUTPUT_NULL, $rrdtool_pipe);
 
 				return 0;
 			}elseif (isset($graph_data_array['export_realtime'])) {
-			
 				$output_flag = RRDTOOL_OUTPUT_GRAPH_DATA;
 				$output = rrdtool_execute("graph $graph_opts$graph_defs$txt_graph_items", false, $output_flag, $rrdtool_pipe);
 
@@ -2078,7 +2076,6 @@ function rrdtool_escape_string($text) {
 	$text = str_replace('"', '\"', $text);
 	$text = str_replace(":", "\:", $text);
 	$text = str_replace('%', '', $text);
-	$text = str_replace('&', '', $text);
 
 	return $text;
 }
@@ -3153,5 +3150,143 @@ function rrd_copy_rra($dom, $cf, $rra_parm) {
 	return $dom;
 }
 
-function rrdtool_create_error_image($string, $type = 'png') {
+function rrdtool_create_error_image($string, $width = '', $height = '') {
+	global $config;
+
+	/* put image in buffer */
+	ob_start();
+
+	$image_data  = false;
+	$font_color  = '000000';
+	$font_size   = 8;
+	$back_color  = 'F3F3F3';
+	$shadea      = 'CBCBCB';
+	$shadeb      = '999999';
+
+	if ($config['cacti_server_os'] == 'unix') {
+		$font_file = '/usr/share/fonts/dejavu/DejaVuSans.ttf';
+	}else{
+		$font_file = 'C:/Windows/Fonts/Arial.ttf';
+	}
+
+	$themefile  = $config['base_path'] . '/include/themes/' . get_selected_theme() . '/rrdtheme.php';
+
+	if (file_exists($themefile) && is_readable($themefile)) {
+		include($themefile);
+
+		if (isset($rrdfonts['legend']['size'])) {
+			$font_size   = $rrdfonts['legend']['size'];
+		}
+
+		if (isset($rrdcolors['font'])) {
+			$font_color  = $rrdcolors['font'];
+		}
+
+		if (isset($rrdcolors['canvas'])) {
+			$back_color  = $rrdcolors['canvas'];
+		}
+
+		if (isset($rrdcolors['shadea'])) {
+			$shadea = $rrdcolors['shadea'];
+		}
+
+		if (isset($rrdcolors['shadeb'])) {
+			$shadeb = $rrdcolors['shadeb'];
+		}
+	}
+
+	$image = imagecreatetruecolor(450, 200);
+	imagesavealpha($image, true);
+
+	/* create a transparent color */
+	$transparent = imagecolorallocatealpha($image, 0, 0, 0, 127);
+	imagefill($image, 0, 0, $transparent);
+
+	/* background the entire image with the frame */
+	list($red, $green, $blue) = sscanf($shadeb, '%02x%02x%02x');
+	$shadeb = imagecolorallocate($image, $red, $green, $blue);
+	imagefill($image, 0, 0, $shadeb);
+
+	/* set the background color */
+	list($red, $green, $blue) = sscanf($shadea, '%02x%02x%02x');
+	$shadea = imagecolorallocate($image, $red, $green, $blue);
+	imagefilledrectangle($image, 1, 1, 448, 198, $shadea);
+
+	/* set the background color */
+	list($red, $green, $blue) = sscanf($back_color, '%02x%02x%02x');
+	$back_color = imagecolorallocate($image, $red, $green, $blue);
+	imagefilledrectangle($image, 2, 2, 447, 197, $back_color);
+
+	/* allocate the image */
+	$logo = imagecreatefrompng($config['base_path'] . '/images/cacti_error_image.png');
+
+	/* merge the two images */
+	imagecopy($image, $logo, 0, 0, 0, 0, 450, 200);
+
+	/* set the background color */
+	list($red, $green, $blue) = sscanf($font_color, '%02x%02x%02x');
+	$text_color = imagecolorallocate($image, $red, $green, $blue);
+
+	/* see the size of the string */
+	$string    = trim($string);
+	$maxstring = (450 - (125 + 10)) / ($font_size / 1.4);
+	$stringlen = strlen($string) * $font_size;
+	$padding   = 5;
+	if ($stringlen > $maxstring) {
+		$cstring = wordwrap($string, $maxstring, "\n", true);
+		$strings = explode("\n", $cstring);
+		$strings = array_reverse($strings);
+		$lines   = sizeof($strings);
+	}else{
+		$strings = array($string);
+		$lines   = 1;
+	}
+
+	/* setup the text position, image is 450x200, we start at 125 pixels from the left */
+	$xpos  = 125;
+	$texth = ($lines * $font_size + (($lines - 1) * $padding));
+	$ypos  = round((200 / 2) + ($texth / 2),0);
+
+	/* set the font of the image */
+	if (file_exists($font_file) && is_readable($font_file)) {
+		foreach($strings as $string) {
+			if (!imagettftext($image, $font_size, 0, $xpos, $ypos, $text_color, $font_file, $string)) {
+				cacti_log('TTF text overlay failed');
+			}
+			$ypos -= ($font_size + $padding);
+		}
+	}else{
+		foreach($strings as $string) {
+			if (!imagestring($image, $font_size, $xpos, $ypos, $string, $font_color)) {
+				cacti_log('Text overlay failed');
+			}
+			$ypos -= ($font_size + $padding);
+		}
+	}
+
+	if ($width != '' && $height != '') {
+		$nimage = imagecreatetruecolor($width, $height);
+		imagecopyresized($nimage, $image, 0, 0, 0, 0, $width, $height, 450, 200);
+
+		/* create the image */
+		imagepng($image);
+	}else{
+		/* create the image */
+		imagepng($image);
+	}
+
+	/* get the image from the buffer */
+	$image_data = ob_get_contents();
+
+	/* destroy the image object */
+	imagedestroy($image);
+	imagedestroy($logo);
+	if (isset($nimage)) {
+		imagedestroy($nimage);
+	}
+	
+	/* flush the buffer */
+	ob_end_clean();
+
+	return $image_data;
 }

@@ -441,14 +441,16 @@ function push_out_graph_item($graph_template_item_id, $local_graph_id = 0) {
 	/* find out if any graphs actual contain this item */
 	$exists = db_fetch_assoc_prepared('SELECT id 
 		FROM graph_templates_item 
-		WHERE local_graph_template_item_id = ?', array($graph_template_item_id));
+		WHERE local_graph_template_item_id = ?', 
+		array($graph_template_item_id));
 
 	if (!sizeof($exists)) {
 		/* if not, reapply the template to push out the new item */
 		$attached_graphs = db_fetch_assoc_prepared('SELECT local_graph_id 
 			FROM graph_templates_graph 
 			WHERE graph_template_id = ?
-			AND local_graph_id>0', array($graph_template_item['graph_template_id']));
+			AND local_graph_id>0', 
+			array($graph_template_item['graph_template_id']));
 
 		if (sizeof($attached_graphs)) {
 			foreach ($attached_graphs as $item) {
@@ -678,7 +680,8 @@ function change_graph_template($local_graph_id, $graph_template_id, $intrusive =
 	/* determine if we are here for the first time, or coming back */
 	$exists = db_fetch_cell_prepared('SELECT local_graph_template_graph_id 
 		FROM graph_templates_graph 
-		WHERE local_graph_id = ?', array($local_graph_id));
+		WHERE local_graph_id = ?', 
+		array($local_graph_id));
 
 	if (!$exists) {
 		$new_save = true;
@@ -726,11 +729,11 @@ function change_graph_template($local_graph_id, $graph_template_id, $intrusive =
 	}
 
 	$graph_template_inputs = db_fetch_assoc_prepared('SELECT
-		graph_template_input.column_name,
-		graph_template_input_defs.graph_template_item_id
-		FROM (graph_template_input,graph_template_input_defs)
-		WHERE graph_template_input.id=graph_template_input_defs.graph_template_input_id
-		AND graph_template_input.graph_template_id = ?', 
+		gti.column_name, gtid.graph_template_item_id
+		FROM graph_template_input AS gti
+		INNER JOIN graph_template_input_defs AS gtid
+		ON gti.id=gtid.graph_template_input_id
+		AND gti.graph_template_id = ?', 
 		array($graph_template_id));
 
 	$cols = db_get_table_column_types('graph_templates_item');
@@ -762,6 +765,7 @@ function change_graph_template($local_graph_id, $graph_template_id, $intrusive =
 				foreach($found_item as $column => $value) {
 					switch($column) {
 					case 'local_graph_id':
+					case 'hash':
 					case 'local_graph_template_item_id':
 					case 'graph_template_id':
 					case 'sequence':
@@ -819,6 +823,7 @@ function change_graph_template($local_graph_id, $graph_template_id, $intrusive =
 				foreach($template_item as $column => $value) {
 					switch($column) {
 					case 'id':
+					case 'hash':
 					case 'local_graph_id':
 					case 'local_graph_template_item_id':
 					case 'graph_template_id':
@@ -1361,10 +1366,32 @@ function data_source_exists($graph_template_id, $host_id, &$data_template, &$snm
 	if (sizeof($snmp_query_array)) {
 		$input_fields = db_fetch_cell_prepared('SELECT GROUP_CONCAT(DISTINCT snmp_field_name ORDER BY snmp_field_name) AS input_fields 
 			FROM snmp_query_graph_rrd 
-			WHERE snmp_query_graph_id= ?', 
+			WHERE snmp_query_graph_id = ?', 
 			array($snmp_query_array['snmp_query_graph_id']));
 
 		$exists = db_fetch_row_prepared('SELECT dl.*, 
+			GROUP_CONCAT(DISTINCT snmp_field_name ORDER BY snmp_field_name) AS input_fields 
+			FROM data_local AS dl 
+			INNER JOIN data_template_data AS dtd 
+			ON dl.id=dtd.local_data_id 
+			INNER JOIN data_input_fields AS dif 
+			ON dif.data_input_id=dtd.data_input_id 
+			INNER JOIN snmp_query_graph_rrd AS sqgr 
+			ON sqgr.data_template_id=dtd.data_template_id 
+			WHERE input_output="in" 
+			AND type_code="output_type" 
+			AND dl.host_id = ? 
+			AND dl.data_template_id = ?
+			AND dl.snmp_query_id = ?
+			AND dl.snmp_index = ?
+			GROUP BY dtd.local_data_id
+			HAVING local_data_id IS NOT NULL AND input_fields = ?',
+			array($host_id, $data_template['id'], 
+				$snmp_query_array['snmp_query_id'], $snmp_query_array['snmp_index'],
+				$input_fields));
+
+// Commented out for testing of faster method to determine duplicated graphs
+/*		$exists = db_fetch_row_prepared('SELECT dl.*, 
 			GROUP_CONCAT(DISTINCT snmp_field_name ORDER BY snmp_field_name) AS input_fields 
 			FROM data_local AS dl 
 			INNER JOIN data_template_data AS dtd 
@@ -1387,12 +1414,16 @@ function data_source_exists($graph_template_id, $host_id, &$data_template, &$snm
 			array($host_id, $data_template['id'], 
 				$snmp_query_array['snmp_query_id'], $snmp_query_array['snmp_index'],
 				$input_fields));
+*/
 	}else{
-		$exists = db_fetch_row_prepared('SELECT * 
-			FROM data_local 
-			WHERE host_id = ? 
-			AND data_template_id = ?', 
-			array($host_id, $data_template['id']));
+		return array();
+
+//		Commenting out as 'previous should only apply to data query graphs'
+//		$exists = db_fetch_row_prepared('SELECT * 
+//			FROM data_local 
+//			WHERE host_id = ? 
+//			AND data_template_id = ?', 
+//			array($host_id, $data_template['id']));
 	}
 
 	return $exists;

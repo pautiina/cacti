@@ -594,7 +594,7 @@ function cacti_log($string, $output = false, $environ = 'CMDPHP', $level = '') {
 	}
 		
 	$force_level = '';
-	$debug_files = read_config_option('selective_debug', true);
+	$debug_files = read_config_option('selective_debug');
 	if ($debug_files != '') {
 		$files = explode(',', $debug_files);
 
@@ -604,7 +604,7 @@ function cacti_log($string, $output = false, $environ = 'CMDPHP', $level = '') {
 	}
 
 	if (strpos($dir_name, 'plugins') !== false) {
-		$debug_plugins = read_config_option('selective_plugin_debug', true);
+		$debug_plugins = read_config_option('selective_plugin_debug');
 		if ($debug_plugins != '') {
 			$debug_plugins = explode(',', $debug_plugins);
 
@@ -620,7 +620,7 @@ function cacti_log($string, $output = false, $environ = 'CMDPHP', $level = '') {
 	/* only log if the specificied level is reached, developer debug is special low + specific devdbg calls */
 	if ($force_level != '') {
 		$level = $force_level;
-	}elseif (read_config_option('log_verbosity', true) == POLLER_VERBOSITY_DEVDBG) {
+	}elseif (read_config_option('log_verbosity') == POLLER_VERBOSITY_DEVDBG) {
 		if ($level != '') {
 			if ($level != POLLER_VERBOSITY_DEVDBG) {
 				if ($level > POLLER_VERBOSITY_LOW) {
@@ -628,7 +628,7 @@ function cacti_log($string, $output = false, $environ = 'CMDPHP', $level = '') {
 				}
 			}
 		}
-	}elseif ($level != '' && $level >= read_config_option('log_verbosity', true)) {
+	}elseif ($level != '' && $level >= read_config_option('log_verbosity')) {
 		return;
 	}
 
@@ -1064,16 +1064,15 @@ function update_host_status($status, $host_id, &$hosts, &$ping, $ping_availabili
      ignoring space and tab, and case insensitive.
    @arg $result - the string to test
    @arg 1 if the argument is hex, 0 otherwise, and FALSE on error */
-function is_hexadecimal(&$result) {
-	$hexstr = trim($result);
-	$hexstr = str_replace(' ', ':', $hexstr);
-	$hexstr = str_replace('-', ':', $hexstr);
+function is_hexadecimal($result) {
+	$hexstr = str_replace(array(' ', '-'), ':', trim($result));
 
 	$parts = explode(':', $hexstr);
 	foreach($parts as $part) {
-		if (!preg_match('/[a-fA-F0-9]/', $part)) {
+		if (strlen($part) != 2) {
 			return false;
-		}elseif (strlen($part != 2)) {
+		}
+		if (ctype_xdigit($part) == false) {
 			return false;
 		}
 	}
@@ -1085,38 +1084,38 @@ function is_hexadecimal(&$result) {
    @arg $result - (string) some string to be evaluated
    @returns - (bool) either to result is a mac address of not */
 function is_mac_address($result) {
-	if (preg_match('/^([0-9a-f]{1,2}[\.:-]){5}([0-9a-f]{1,2})$/i', $result)) {
-		return true;
-	}else{
-		return false;
-	}
+	return filter_var($result, FILTER_VALIDATE_MAC);
 }
 
 function is_hex_string($result) {
-	if ($result != '') {
-		$parts = explode(' ', $result);
+    if ($result == '') {
+        return false;
+    }
 
-		foreach($parts as $part) {
-			if (strlen($part) != 2) {
-				return false;
-			}elseif (!preg_match('/^([a-fA-F0-9]{2})$/', $part)) {
-				return false;
-			}
-		}
+    $parts = explode(' ', $result);
 
-		return true;
-	}
+    /* assume if something is a hex string
+       it will have a length > 1 */
+    if (sizeof($parts) == 1) {
+        return false;
+    }
 
-	return false;
+    foreach($parts as $part) {
+        if (strlen($part) != 2) {
+            return false;
+        }
+        if (ctype_xdigit($part) == false) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /* prepare_validate_result - determine's if the result value is valid or not.  If not valid returns a "U"
    @arg $result - (string) the result from the poll, the result can be modified in the call
    @returns - (bool) either to result is valid or not */
 function prepare_validate_result(&$result) {
-	$delim_cnt = 0;
-	$space_cnt = 0;
-
 	/* first trim the string */
 	$result = trim($result, "'\"\n\r");
 
@@ -1126,25 +1125,22 @@ function prepare_validate_result(&$result) {
 	}elseif ($result == 'U') {
 		return true;
 	}elseif (is_hexadecimal($result)) {
-		return hex2dec($result);
-	}elseif (((substr_count($result, ':')) || (substr_count($result, '!')))) {
+		return hexdec($result);
+	}elseif (substr_count($result, ':') || substr_count($result, '!')) {
 		/* looking for name value pairs */
 		if (substr_count($result, ' ') == 0) {
 			return true;
 		} else {
+			$delim_cnt = 0;
 			if (substr_count($result, ':')) {
 				$delim_cnt = substr_count($result, ':');
-			} else if (strstr($result, '!')) {
+			} elseif (strstr($result, '!')) {
 				$delim_cnt = substr_count($result, '!');
 			}
 
 			$space_cnt = substr_count($result, ' ');
 
-			if ($space_cnt+1 == $delim_cnt) {
-				return true;
-			} else {
-				return false;
-			}
+			return ($space_cnt+1 == $delim_cnt);
 		}
 	}else{
 		/* strip all non numeric data */
@@ -1198,7 +1194,7 @@ function get_full_script_path($local_data_id) {
 
 	if (sizeof($data) > 0) {
 	foreach ($data as $item) {
-		$full_path = str_replace('<' . $item['data_name'] . '>', escapeshellarg($item['value']), $full_path);
+		$full_path = str_replace('<' . $item['data_name'] . '>', cacti_escapeshellarg($item['value']), $full_path);
 	}
 	}
 
@@ -2143,12 +2139,6 @@ function draw_navigation_text($type = 'url') {
 			'url' => '', 
 			'level' => '2'
 			),
-		'graph_templates.php:actions' => array(
-			'title' => __('Actions'), 
-			'mapping' => 'index.php:,graph_templates.php:', 
-			'url' => '', 
-			'level' => '2'
-			),
 		'data_templates.php:' => array(
 			'title' => __('Data Templates'), 
 			'mapping' => 'index.php:', 
@@ -2797,9 +2787,11 @@ function draw_navigation_text($type = 'url') {
 
 		$tree_title = $tree_name . ($leaf_name != '' ? ' (' . $leaf_name:'') . ($leaf_sub != '' ? ':' . $leaf_sub . ')':($leaf_name != '' ? ')':''));
 
-		$current_nav .= "<li><a id='nav_title' href=#>" . htmlspecialchars($tree_title) . '</a></li></ul>';
+		if ($tree_title != '') {
+			$current_nav .= "<li><a id='nav_title' href=#>" . htmlspecialchars($tree_title) . '</a></li></ul>';
+		}
 	}elseif (preg_match('#link.php\?id=(\d+)#', $_SERVER['REQUEST_URI'], $matches)) {
-        $title      = db_fetch_cell_prepared('SELECT title FROM external_links WHERE id = ?', array($matches[1]));
+		$title      = db_fetch_cell_prepared('SELECT title FROM external_links WHERE id = ?', array($matches[1]));
 		$style      = db_fetch_cell_prepared('SELECT style FROM external_links WHERE id = ?', array($matches[1]));
 		if ($style == 'CONSOLE') {
 			$current_nav = "<ul id='breadcrumbs'><li><a id='nav_0' href='" . $config['url_path'] . 
@@ -2943,7 +2935,7 @@ function get_hash_cdef($cdef_id, $sub_type = 'cdef') {
 		$hash = db_fetch_cell_prepared('SELECT hash FROM cdef_items WHERE id = ?', array($cdef_id));
 	}
 
-	if (preg_match('/[a-fA-F0-9]{32}/', $hash)) {
+	if (strlen($hash) == 32 && ctype_xdigit($hash)) {
 		return $hash;
 	}else{
 		return generate_hash();
@@ -2956,7 +2948,7 @@ function get_hash_cdef($cdef_id, $sub_type = 'cdef') {
 function get_hash_gprint($gprint_id) {
 	$hash = db_fetch_cell_prepared('SELECT hash FROM graph_templates_gprint WHERE id = ?', array($gprint_id));
 
-	if (preg_match('/[a-fA-F0-9]{32}/', $hash)) {
+	if (strlen($hash) == 32 && ctype_xdigit($hash)) {
 		return $hash;
 	}else{
 		return generate_hash();
@@ -2975,7 +2967,7 @@ function get_hash_vdef($vdef_id, $sub_type = "vdef") {
 		$hash = db_fetch_cell_prepared('SELECT hash FROM vdef_items WHERE id = ?', array($vdef_id));
 	}
 
-	if (preg_match('/[a-fA-F0-9]{32}/', $hash)) {
+	if (strlen($hash) == 32 && ctype_xdigit($hash)) {
 		return $hash;
 	}else{
 		return generate_hash();
@@ -2989,7 +2981,7 @@ function get_hash_vdef($vdef_id, $sub_type = "vdef") {
 function get_hash_data_source_profile($data_source_profile_id) {
 	$hash = db_fetch_cell_prepared('SELECT hash FROM data_source_profiles WHERE id = ?', array($data_source_profile_id));
 
-	if (preg_match('/[a-fA-F0-9]{32}/', $hash)) {
+	if (strlen($hash) == 32 && ctype_xdigit($hash)) {
 		return $hash;
 	}else{
 		return generate_hash();
@@ -3002,7 +2994,7 @@ function get_hash_data_source_profile($data_source_profile_id) {
 function get_hash_host_template($host_template_id) {
 	$hash = db_fetch_cell_prepared('SELECT hash FROM host_template WHERE id = ?', array($host_template_id));
 
-	if (preg_match('/[a-fA-F0-9]{32}/', $hash)) {
+	if (strlen($hash) == 32 && ctype_xdigit($hash)) {
 		return $hash;
 	}else{
 		return generate_hash();
@@ -3024,7 +3016,7 @@ function get_hash_data_query($data_query_id, $sub_type = 'data_query') {
 		$hash = db_fetch_cell_prepared('SELECT hash FROM snmp_query_graph_sv WHERE id = ?', array($data_query_id));
 	}
 
-	if (preg_match('/[a-fA-F0-9]{32}/', $hash)) {
+	if (strlen($hash) == 32 && ctype_xdigit($hash)) {
 		return $hash;
 	}else{
 		return generate_hash();
@@ -3223,7 +3215,7 @@ function cacti_escapeshellcmd($string) {
  * @param $quote 	- true: do NOT remove quotes from result; false: do remove quotes
  * @return			- the escaped [quoted|unquoted] string
  */
-function cacti_escapeshellarg($string, $quote=true) {
+function cacti_escapeshellarg($string, $quote = true) {
 	global $config;
 	/* we must use an apostrophe to escape community names under Unix in case the user uses
 	characters that the shell might interpret. the ucd-snmp binaries on Windows flip out when
@@ -3248,11 +3240,36 @@ function cacti_escapeshellarg($string, $quote=true) {
 		}
 
 		/* ... before we add our own quotation */
-		if ( $quote ) {
+		if ($quote) {
 			return CACTI_ESCAPE_CHARACTER . $string . CACTI_ESCAPE_CHARACTER;
 		} else {
 			return $string;
 		}
+	}
+}
+
+/**
+ * set a page refresh in Cacti through a callback
+ * @param $refresh - an array containing the page, seconds, and logout
+ * @return         - nill
+ */
+function set_page_refresh($refresh) {
+	if (isset($refresh['seconds'])) {
+		$_SESSION['refresh']['seconds'] = $refresh['seconds'];
+	}
+
+	if (isset($refresh['logout'])) {
+		if ($refresh['logout'] == 'true' || $refresh['logout'] === true) {
+			$_SESSION['refresh']['logout']  = 'true';
+		}else{
+			$_SESSION['refresh']['logout']  = 'false';
+		}
+	}else{
+		$_SESSION['refresh']['logout']  = 'true';
+	}
+
+	if (isset($refresh['page'])) {
+		$_SESSION['refresh']['page']    = $refresh['page'];
 	}
 }
 
@@ -3376,6 +3393,18 @@ function mailer($from, $to, $cc, $bcc, $replyto, $subject, $body, $body_text = '
 	// Set the to informaiotn
 	if ($to == '') {
 		return __('Mailer Error: No <b>TO</b> address set!!<br>If using the <i>Test Mail</i> link, please set the <b>Alert e-mail</b> setting.');
+	}
+
+	/* perform data substitution */
+	if (strpos($subject, '|date_time|') !== false) {
+		$date = db_fetch_cell('SELECT value FROM settings WHERE name="date"');
+		if (!empty($date)) {
+			$time = strtotime($date);
+		}else{
+			$time = time();
+		}
+
+		$subject = str_replace('|date_time|', date(date_time_format(), $time), $subject);
 	}
 
 	if (is_array($to)) {
@@ -3646,7 +3675,7 @@ function mailer($from, $to, $cc, $bcc, $replyto, $subject, $body, $body_text = '
 	}
 }
 
-function ping_mail_server($host, $port, $user, $password, $timeout = 5, $secure = 'none') {
+function ping_mail_server($host, $port, $user, $password, $timeout = 10, $secure = 'none') {
 	global $config;
 
 	include_once($config['include_path'] . '/phpmailer/PHPMailerAutoload.php');
@@ -3683,10 +3712,11 @@ function ping_mail_server($host, $port, $user, $password, $timeout = 5, $secure 
 				throw new Exception(__('HELO failed: %s', $smtp->getLastReply()));
 			}
 		} else {
-			throw new Exception(__('Connect failed'));
+			throw new Exception(__('Connect failed: %s', $smtp->getLastReply()));
 		}
 	} catch (Exception $e) {
 		$results = __('SMTP error: ') . $e->getMessage();
+		cacti_log($results);
 	}
 
 	//Whatever happened, close the connection.
@@ -4576,5 +4606,52 @@ function is_ipaddress($ip_address = '') {
 	}else{
 		return false;
 	}
+}
+
+/** date_time_format		create a format string for date/time
+ * @param string returns	date time format
+ */
+function date_time_format() {
+	global $config;
+
+	$date = '';
+
+	/* setup date format */
+	if (isset($_SESSION['sess_user_id'])) {
+		$date_fmt = read_user_setting('default_date_format');
+		$datechar = read_user_setting('default_datechar');
+	}else{
+		$date_fmt = read_config_option('default_date_format');
+		$datechar = read_config_option('default_datechar');
+	}
+
+	switch ($datechar) {
+		case GDC_HYPHEN: 	$datechar = '-'; break;
+		case GDC_SLASH: 	$datechar = '/'; break;
+		case GDC_DOT:	 	$datechar = '.'; break;
+	}
+
+	switch ($date_fmt) {
+		case GD_MO_D_Y:
+			$date = 'm' . $datechar . 'd' . $datechar . 'Y H:i:s';
+			break;
+		case GD_MN_D_Y:
+			$date = 'M' . $datechar . 'd' . $datechar . 'Y H:i:s';
+			break;
+		case GD_D_MO_Y:
+			$date = 'd' . $datechar . 'm' . $datechar . 'Y H:i:s';
+			break;
+		case GD_D_MN_Y:
+			$date = 'd' . $datechar . 'M' . $datechar . 'Y H:i:s';
+			break;
+		case GD_Y_MO_D:
+			$date = 'Y' . $datechar . 'm' . $datechar . 'd H:i:s';
+			break;
+		case GD_Y_MN_D:
+			$date = 'Y' . $datechar . 'M' . $datechar . 'd H:i:s';
+			break;
+	}
+
+	return $date;
 }
 

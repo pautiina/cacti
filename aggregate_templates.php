@@ -614,6 +614,9 @@ function aggregate_template() {
 		ON gt.id=pgt.graph_template_id
 		$sql_where");
 
+	$sql_order = get_order_string();
+	$sql_limit = ' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows;
+
 	$template_list = db_fetch_assoc("SELECT pgt.*, graphs.graphs, gt.name AS graph_template_name
 		FROM aggregate_graph_templates AS pgt
 		LEFT JOIN (
@@ -625,8 +628,8 @@ function aggregate_template() {
 		LEFT JOIN graph_templates AS gt
 		ON gt.id=pgt.graph_template_id
 		$sql_where
-		ORDER BY " . get_request_var('sort_column') . ' ' . get_request_var('sort_direction') .
-		' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows);
+		$sql_order
+		$sql_limit");
 
 	$nav = html_nav_bar('aggregate_templates.php', MAX_DISPLAY_PAGES, get_request_var('page'), $rows, $total_rows, 5, __('Aggregate Templates'), 'page', 'main');
 
@@ -639,7 +642,7 @@ function aggregate_template() {
 	$display_text = array(
 		'pgt.name'            => array('display' => __('Template Title'), 'align' => 'left', 'sort' => 'ASC'),
 		'nosort'              => array('display' => __('Deletable'), 'align' => 'right', 'tip' => __('Aggregate Templates that are in use can not be Deleted.  In use is defined as being referenced by an Aggregate.')),
-		'graphs.graphs'       => array('display' => __('Graphs'), 'align' => 'right', 'sort' => 'DESC'),
+		'graphs.graphs'       => array('display' => __('Graphs Using'), 'align' => 'right', 'sort' => 'DESC'),
 		'graph_template_name' => array('display' => __('Graph Template'), 'align' => 'left', 'sort' => 'ASC')
 	);
 
@@ -656,7 +659,7 @@ function aggregate_template() {
 			form_alternate_row('line' . $template['id'], true, $disabled);
 			form_selectable_cell(filter_value($template['name'], get_request_var('filter'), 'aggregate_templates.php?action=edit&id=' . $template['id'] . '&page=1'), $template['id']);
 			form_selectable_cell($disabled ? 'No':'Yes', $template['id'], '', 'text-align:right');
-			form_selectable_cell(number_format_i18n($template['graphs'],0), $template['id'], '', 'text-align:right;');
+			form_selectable_cell('<a class="linkEditMain" href="' . htmlspecialchars('aggregate_graphs.php?reset=true&template_id=' . $template['id']) . '">' . number_format_i18n($template['graphs'], '-1') . '</a>', $template['id'], '', 'text-align:right;');
 			form_selectable_cell(filter_value($template['graph_template_name'], get_request_var('filter')), $template['id']);
 			form_checkbox_cell($template['graph_template_name'], $template['id'], $disabled);
 			form_end_row();

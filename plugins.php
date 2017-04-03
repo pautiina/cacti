@@ -337,18 +337,6 @@ function update_show_current () {
 		}
 	}
 
-	if (get_request_var('sort_column') == 'version') {
-		$sortc = 'version+0';
-	}else{
-		$sortc = get_request_var('sort_column');
-	}
-
-	if (get_request_var('sort_column') == 'id') {
-		$sortd = 'ASC';
-	}else{
-		$sortd = get_request_var('sort_direction');
-	}
-
 	if (get_request_var('rows') == '-1') {
 		$rows = read_config_option('num_rows_table');
 	}else{
@@ -360,11 +348,17 @@ function update_show_current () {
 		FROM $table
 		$sql_where");
 
+	$sql_order = get_order_string();
+	$sql_limit = ' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows;
+
+	$sql_order = str_replace('version ', 'version+0 ', $sql_order);
+	$sql_order = str_replace('id DESC', 'id ASC', $sql_order);
+
 	$plugins = db_fetch_assoc("SELECT *
 		FROM $table
 		$sql_where
-		ORDER BY " . $sortc . ' ' . $sortd . '
-		LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows);
+		$sql_order
+		$sql_limit");
 
 	db_execute("DROP TABLE $table");
 
@@ -427,7 +421,7 @@ function format_plugin_row($plugin, $last_plugin, $include_ordering) {
 
 	$row = plugin_actions($plugin);
 
-	$row .= "<td><a href='" . htmlspecialchars($plugin['webpage']) . "' target='_blank'><strong>" . (strlen(get_request_var('filter')) ? preg_replace('/(' . preg_quote(get_request_var('filter')) . ')/i', "<span class='filteredValue'>\\1</span>", ucfirst($plugin['directory'])) : ucfirst($plugin['directory'])) . '</strong></a>' . (is_dir($config['base_path'] . '/plugins/' . $plugin['directory']) ? '':' (<span class="txtErrorText">' . __('ERROR: Directory Missing') . '</span>)') . '</td>';
+	$row .= "<td><a href='" . htmlspecialchars($plugin['webpage']) . "' target='_blank'>" . (strlen(get_request_var('filter')) ? preg_replace('/(' . preg_quote(get_request_var('filter')) . ')/i', "<span class='filteredValue'>\\1</span>", ucfirst($plugin['directory'])) : ucfirst($plugin['directory'])) . '</a>' . (is_dir($config['base_path'] . '/plugins/' . $plugin['directory']) ? '':' (<span class="txtErrorText">' . __('ERROR: Directory Missing') . '</span>)') . '</td>';
 
 	$row .= "<td class='nowrap'>" . filter_value($plugin['name'], get_request_var('filter')) . "</td>\n";
 	$row .= "<td class='nowrap'>" . $status_names[$plugin['status']] . "</td>\n";

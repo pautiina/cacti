@@ -22,7 +22,7 @@
  +-------------------------------------------------------------------------+
 */
 
-global $menu;
+global $menu, $menu_glyphs;
 
 $messages = array(
 	1  => array(
@@ -102,6 +102,12 @@ $messages = array(
 		'type' => 'error'),
 	32 => array(
 		'message' => __('SNMPv3 Auth Passphrases must be 8 characters or greater.'),
+		'type' => 'error'),
+	33 => array(
+		'message' => __('Some Graphs not Updated. Unable to Change Device for Data Query based Graphs.'),
+		'type' => 'error'),
+	34 => array(
+		'message' => __('Unable to Change Device for Data Query based Graphs.'),
 		'type' => 'error'),
 	'clog_purged' => array(
 		'message' => __('Cacti Log purged successfully'), 
@@ -257,16 +263,22 @@ $input_types = array(
 );
 
 $input_types_script = array(
-	DATA_INPUT_TYPE_SNMP                => __('SNMP Get'), // Action 0:
 	DATA_INPUT_TYPE_SCRIPT              => __('Script/Command'),  // Action 1:
 	DATA_INPUT_TYPE_PHP_SCRIPT_SERVER   => __('Script Server'),
 );
 
 $reindex_types = array(
 	DATA_QUERY_AUTOINDEX_NONE               => __('None'),
-	DATA_QUERY_AUTOINDEX_BACKWARDS_UPTIME   => __('Uptime Goes Backwards'),
-	DATA_QUERY_AUTOINDEX_INDEX_NUM_CHANGE   => __('Index Count Changed'),
-	DATA_QUERY_AUTOINDEX_FIELD_VERIFICATION => __('Verify All Fields')
+	DATA_QUERY_AUTOINDEX_BACKWARDS_UPTIME   => __('Uptime'),
+	DATA_QUERY_AUTOINDEX_INDEX_NUM_CHANGE   => __('Index Count'),
+	DATA_QUERY_AUTOINDEX_FIELD_VERIFICATION => __('Verify All')
+);
+
+$reindex_types_tips = array(
+	DATA_QUERY_AUTOINDEX_NONE               => __('All Re-Indexing will be manual or managed through scripts or Device Automation.'),
+	DATA_QUERY_AUTOINDEX_BACKWARDS_UPTIME   => __('When the Devices SNMP uptime goes backward, a Re-Index will be performed.'),
+	DATA_QUERY_AUTOINDEX_INDEX_NUM_CHANGE   => __('When the Data Query index count changes, a Re-Index will be performed.'),
+	DATA_QUERY_AUTOINDEX_FIELD_VERIFICATION => __('Every polling cycle, a Re-Index will be performed.  Very expensive.')
 );
 
 $snmp_query_field_actions = array(1 =>
@@ -342,6 +354,7 @@ $graph_item_types = array(
 	GRAPH_ITEM_TYPE_GPRINT_MAX      => 'GPRINT:MAX',
 	GRAPH_ITEM_TYPE_GPRINT_MIN      => 'GPRINT:MIN',
 	GRAPH_ITEM_TYPE_LEGEND          => 'LEGEND',
+	GRAPH_ITEM_TYPE_LEGEND_CAMM     => 'LEGEND_CAMM',
 	GRAPH_ITEM_TYPE_LINESTACK       => 'LINE:STACK',
 	GRAPH_ITEM_TYPE_TIC             => 'TICK',
 	GRAPH_ITEM_TYPE_TEXTALIGN       => 'TEXTALIGN',
@@ -646,14 +659,14 @@ if ($config['poller_id'] == 1 || $config['connection'] == 'online') {
 			'templates_export.php' => __('Export Templates')
 			),
 		__('Configuration')  => array(
-			'settings.php' => __('Settings'),
-			'links.php'    => __('External Links')
-			),
-		__('Utilities') => array(
-			'utilities.php'        => __('System Utilities'),
+			'settings.php'         => __('Settings'),
 			'user_admin.php'       => __('Users'),
 			'user_group_admin.php' => __('User Groups'),
 			'user_domains.php'     => __('User Domains')
+			),
+		__('Utilities') => array(
+			'utilities.php' => __('System Utilities'),
+			'links.php'     => __('External Links'),
 			)
 	);
 }else{
@@ -672,6 +685,18 @@ if ($config['poller_id'] == 1 || $config['connection'] == 'online') {
 			)
 	);
 }
+
+$menu_glyphs = array(
+	__('Create') => 'fa fa-area-chart',
+	__('Management') => 'fa fa-home',
+	__('Data Collection') => 'fa fa-database',
+	__('Templates') => 'fa fa-clone',
+	__('Automation') => 'fa fa-superpowers',
+	__('Presets') => 'fa fa-archive',
+	__('Import/Export') => 'fa fa-exchange',
+	__('Configuration')  => 'fa fa-sliders',
+	__('Utilities') => 'fa fa-cogs'
+);
 
 if ((isset($_SESSION['sess_user_id']))) {
 	if (db_table_exists('external_links')) {
@@ -933,6 +958,9 @@ $hash_version_codes = array(
 	'1.0.4'  => '0100',
 	'1.0.5'  => '0100',
 	'1.0.6'  => '0100',
+	'1.1.0'  => '0100',
+	'1.1.1'  => '0100',
+	'1.1.2'  => '0100'
 );
 
 $hash_type_names = array(
@@ -1056,7 +1084,7 @@ $graph_weekdays = array(
 	WD_SATURDAY  => date('l', strtotime('Saturday'))
 );
 
-$graph_dateformats = array(
+$dateformats = array(
 	GD_MO_D_Y => __('Month Number, Day, Year'),
 	GD_MN_D_Y => __('Month Name, Day, Year'),
 	GD_D_MO_Y => __('Day, Month Number, Year'),
@@ -1065,7 +1093,7 @@ $graph_dateformats = array(
 	GD_Y_MN_D => __('Year, Month Name, Day')
 );
 
-$graph_datechar = array(
+$datechar = array(
 	GDC_HYPHEN => '-',
 	GDC_SLASH => '/'
 );
@@ -1485,7 +1513,6 @@ $phperrors = array (
 	16384 => 'USER_DEPRECATED',
 	32767 => 'ALL'
 );
-
 
 api_plugin_hook('config_arrays');
 

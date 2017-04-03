@@ -456,14 +456,17 @@ function sites() {
 
 	$total_rows = db_fetch_cell("SELECT COUNT(*) FROM sites $sql_where");
 
+	$sql_order = get_order_string();
+	$sql_limit = ' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows;
+
 	$site_list = db_fetch_assoc("SELECT sites.*, count(h.id) AS hosts
 		FROM sites
 		LEFT JOIN host AS h
 		ON h.site_id=sites.id
 		$sql_where
 		GROUP BY sites.id
-		ORDER BY " . get_request_var('sort_column') . ' ' . get_request_var('sort_direction') .
-		' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows);
+		$sql_order
+		$sql_limit");
 
 	$nav = html_nav_bar('sites.php?filter=' . get_request_var('filter'), MAX_DISPLAY_PAGES, get_request_var('page'), $rows, $total_rows, 5, __('Sites'), 'page', 'main');
 
@@ -489,7 +492,7 @@ function sites() {
 			form_alternate_row('line' . $site['id'], true);
 			form_selectable_cell(filter_value($site['name'], get_request_var('filter'), 'sites.php?action=edit&id=' . $site['id']), $site['id']);
 			form_selectable_cell($site['id'], $site['id'], '', 'right');
-			form_selectable_cell(number_format_i18n($site['hosts']), $site['id'], '', 'right');
+			form_selectable_cell(number_format_i18n($site['hosts'], '-1'), $site['id'], '', 'right');
 			form_selectable_cell($site['city'], $site['id'], '', 'left');
 			form_selectable_cell($site['state'], $site['id'], '', 'left');
 			form_selectable_cell($site['country'], $site['id'], '', 'left');

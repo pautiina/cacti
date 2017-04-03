@@ -420,16 +420,14 @@ function get_discovery_results(&$total_rows = 0, $rows = 0, $export = false) {
 
 		$page = get_request_var('page');
 
-		$sortby  = get_request_var('sort_column');
-		if ($sortby=='ip') {
-			$sortby = 'INET_ATON(ip)';
-		}
+		$sql_order = get_order_string();
+		$sql_limit = ' LIMIT ' . ($rows*($page-1)) . ',' . $rows;
 
 		$sql_query = "SELECT *, FROM_UNIXTIME(time) AS mytime
 			FROM automation_devices
 			$sql_where
-			ORDER BY " . $sortby . ' ' . get_request_var('sort_direction') . '
-			LIMIT ' . ($rows*($page-1)) . ',' . $rows;
+			$sql_order
+			$sql_limit";
 
 		return db_fetch_assoc($sql_query);
 	}
@@ -567,7 +565,7 @@ function draw_filter() {
 			});
 
 			$('#export').click(function() {
-				document.location = 'automation_devices.php?export=1';
+				document.location = 'automation_devices.php?action=export';
 			});
 		});
 	

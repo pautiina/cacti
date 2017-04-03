@@ -1097,6 +1097,9 @@ function data_query() {
 		ON (sq.data_input_id=di.id)
 		$sql_where");
 
+	$sql_order = get_order_string();
+	$sql_limit = ' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows;
+
 	$snmp_queries = db_fetch_assoc("SELECT sq.id, sq.name,
 		di.name AS data_input_method, 
 		COUNT(DISTINCT gl.id) AS graphs,
@@ -1110,8 +1113,8 @@ function data_query() {
 		ON gl.snmp_query_id=sq.id
 		$sql_where
 		GROUP BY sq.id
-		ORDER BY " . get_request_var('sort_column') . ' ' . get_request_var('sort_direction') . '
-		LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows);
+		$sql_order
+		$sql_limit");
 
 	$nav = html_nav_bar('data_queries.php?filter=' . get_request_var('filter'), MAX_DISPLAY_PAGES, get_request_var('page'), $rows, $total_rows, 7, __('Data Queries'), 'page', 'main');
 
@@ -1144,8 +1147,8 @@ function data_query() {
 			form_selectable_cell(filter_value($snmp_query['name'], get_request_var('filter'), 'data_queries.php?action=edit&id=' . $snmp_query['id']), $snmp_query['id']);
 			form_selectable_cell($snmp_query['id'], $snmp_query['id'], '', 'text-align:right;');
 			form_selectable_cell($disabled ? __('No') : __('Yes'), $snmp_query['id'], '', 'text-align:right');
-			form_selectable_cell(number_format_i18n($snmp_query['graphs']), $snmp_query['id'], '', 'text-align:right');
-			form_selectable_cell(number_format_i18n($snmp_query['templates']), $snmp_query['id'], '', 'text-align:right');
+			form_selectable_cell(number_format_i18n($snmp_query['graphs'], '-1'), $snmp_query['id'], '', 'text-align:right');
+			form_selectable_cell(number_format_i18n($snmp_query['templates'], '-1'), $snmp_query['id'], '', 'text-align:right');
 			form_selectable_cell(filter_value($snmp_query['data_input_method'], get_request_var('filter')), $snmp_query['id']);
 			form_checkbox_cell($snmp_query['name'], $snmp_query['id'], $disabled);
 			form_end_row();

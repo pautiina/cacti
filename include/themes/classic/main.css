@@ -457,6 +457,14 @@ label {
 	font-size:14px;
 }
 
+.verbosequery {
+	cursor:pointer;
+	padding:2px;
+	vertical-align:middle;
+	color: rgba(255, 204, 0, 0.8);
+	font-size:14px;
+}
+
 .deletequery {
 	cursor:pointer;
 	padding:2px;
@@ -609,7 +617,8 @@ ul#breadcrumbs {
 
 #breadcrumbs li {
 	float: left;
-	font-size:10px;
+	font-size: 10px;
+	padding-top: 2px;
 }
 
 #breadcrumbs a {
@@ -859,8 +868,8 @@ legend {
 .linkEditMain, .linkEditMain:visited, .linkEditMain:active {
 	color: blue;
 	text-decoration: none;
-	font-weight: bold;
-	padding: 3px;
+	font-weight: normal;
+	padding: 0px;
 	white-space: nowrap;
 	cursor:pointer;
 }
@@ -868,7 +877,7 @@ legend {
 .linkEditMain:hover {
 	color: blue;
 	text-decoration: underline;
-	font-weight: bold;
+	font-weight: normal;
 }
 
 .linkOverDark, .linkOverDark:visited, .linkOverDark:active {
@@ -1564,3 +1573,25 @@ tr#realtime td:first-child {
 	width: 12.5%;
 }
 
+.menu_glyph {
+	display: none;
+}
+
+.ui-multiselect {
+	padding: 1px;
+	color: black;
+	font-size: 12px;
+}
+
+.ui-multiselect-checkboxes span {
+	font-size: 12px;
+	color: black;
+}
+
+.ui-multiselect-header {
+	background-color: #E5E5E5;
+}
+
+.ui-multiselect-filter {
+	width: 100%;
+}

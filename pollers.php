@@ -577,14 +577,17 @@ function pollers() {
 
 	$total_rows = db_fetch_cell("SELECT COUNT(*) FROM poller $sql_where");
 
+	$sql_order = get_order_string();
+	$sql_limit = ' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows;
+
 	$pollers = db_fetch_assoc("SELECT poller.*, count(h.id) AS hosts
 		FROM poller
 		LEFT JOIN host AS h
 		ON h.poller_id=poller.id
 		$sql_where
 		GROUP BY poller.id
-		ORDER BY " . get_request_var('sort_column') . ' ' . get_request_var('sort_direction') .
-		' LIMIT ' . ($rows*(get_request_var('page')-1)) . ',' . $rows);
+		$sql_order
+		$sql_limit");
 
 	$nav = html_nav_bar('pollers.php?filter=' . get_request_var('filter'), MAX_DISPLAY_PAGES, get_request_var('page'), $rows, $total_rows, 5, __('Pollers'), 'page', 'main');
 
@@ -630,10 +633,10 @@ function pollers() {
 			form_selectable_cell($poller['hostname'], $poller['id'], '', 'right');
 			form_selectable_cell($poller_status[$poller['status']], $poller['id'], '', 'center');
 			form_selectable_cell(number_format_i18n($poller['total_time'], 2), $poller['id'], '', 'right');
-			form_selectable_cell(number_format_i18n($poller['hosts']), $poller['id'], '', 'right');
-			form_selectable_cell(number_format_i18n($poller['snmp']), $poller['id'], '', 'right');
-			form_selectable_cell(number_format_i18n($poller['script']), $poller['id'], '', 'right');
-			form_selectable_cell(number_format_i18n($poller['server']), $poller['id'], '', 'right');
+			form_selectable_cell(number_format_i18n($poller['hosts'], '-1'), $poller['id'], '', 'right');
+			form_selectable_cell(number_format_i18n($poller['snmp'], '-1'), $poller['id'], '', 'right');
+			form_selectable_cell(number_format_i18n($poller['script'], '-1'), $poller['id'], '', 'right');
+			form_selectable_cell(number_format_i18n($poller['server'], '-1'), $poller['id'], '', 'right');
 			form_selectable_cell($poller['last_update'], $poller['id'], '', 'right');
 			form_selectable_cell($poller['last_status'], $poller['id'], '', 'right');
 			form_checkbox_cell($poller['name'], $poller['id'], $disabled);

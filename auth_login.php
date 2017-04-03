@@ -101,7 +101,7 @@ if (get_nfilter_request_var('action') == 'login') {
 		break;
 	case '3':
 		/* LDAP Auth */
- 		if ((get_nfilter_request_var('realm') == '3') && (strlen(get_nfilter_request_var('login_password')) > 0)) {
+ 		if ((get_nfilter_request_var('realm') == '2') && (strlen(get_nfilter_request_var('login_password')) > 0)) {
 			/* include LDAP lib */
 			include_once('./lib/ldap.php');
 
@@ -126,7 +126,7 @@ if (get_nfilter_request_var('action') == 'login') {
 					/* User ok */
 					$user_auth = true;
 					$copy_user = true;
-					$realm = 1;
+					$realm = 3;
 
 					/* Locate user in database */
 					cacti_log("LOGIN: LDAP User '" . $username . "' Authenticated", false, 'AUTH');
@@ -149,9 +149,13 @@ if (get_nfilter_request_var('action') == 'login') {
 
 		break;
 	case '4':
-		domains_login_process();
+		if (get_request_var('realm') > 0) {
+			domains_login_process();
 
-		break;
+			break;
+		}
+
+		/* continue on to normal login process */
 	default:
 		secpass_login_process();
 
@@ -236,13 +240,27 @@ if (get_nfilter_request_var('action') == 'login') {
 	/* Process the user  */
 	if (sizeof($user)) {
 		cacti_log("LOGIN: User '" . $user['username'] . "' Authenticated", false, 'AUTH');
-		if (isset($_SERVER['X-Forwarded-For'])) {
-			db_execute_prepared('INSERT IGNORE INTO user_log (username, user_id, result, ip, time) VALUES (?, ?, 1, ?, NOW())',array($username, $user['id'], $_SERVER['X-Forwarded-For']));
+
+		if (isset($_SERVER['HTTP_CLIENT_IP'])) {
+			$client_addr = $_SERVER['HTTP_CLIENT_IP'];
+		} elseif (isset($_SERVER['X-Forwarded-For'])) {
+			$client_addr = $_SERVER['X-Forwarded-For'];
 		} elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-			db_execute_prepared('INSERT IGNORE INTO user_log (username, user_id, result, ip, time) VALUES (?, ?, 1, ?, NOW())',array($username, $user['id'], $_SERVER['HTTP_X_FORWARDED_FOR']));
+			$client_addr = $_SERVER['HTTP_X_FORWARDED_FOR'];
+		} elseif (isset($_SERVER['HTTP_FORWARDED_FOR'])) {
+			$client_addr = $_SERVER['HTTP_FORWARDED_FOR'];
+		} elseif (isset($_SERVER['HTTP_FORWARDED'])) {
+			$client_addr = $_SERVER['HTTP_FORWARDED'];
+		} elseif (isset($_SERVER['REMOTE_ADDR'])) {
+			$client_addr = $_SERVER['REMOTE_ADDR'];
 		} else {
-			db_execute_prepared('INSERT IGNORE INTO user_log (username, user_id, result, ip, time) VALUES (?, ?, 1, ?, NOW())', array($username, $user['id'], $_SERVER['REMOTE_ADDR']));
+			$client_addr = '';
 		}
+
+		db_execute_prepared('INSERT IGNORE INTO user_log 
+			(username, user_id, result, ip, time) 
+			VALUES (?, ?, 1, ?, NOW())', 
+			array($username, $user['id'], $client_addr));
 
 		/* is user enabled */
 		$user_enabled = $user['enabled'];
